@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
@@ -90,10 +89,18 @@ const styles = `
   * { box-sizing: border-box; }
   body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg-dark); color: var(--text-main); height: 100vh; overflow: hidden; }
   
-  .app-container { display: flex; height: 100vh; }
+  .app-container { display: flex; height: 100vh; width: 100vw; }
   
   /* Sidebar */
-  .sidebar { width: 240px; background: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1rem; }
+  .sidebar { 
+    width: 240px; 
+    background: var(--bg-panel); 
+    border-right: 1px solid var(--border); 
+    display: flex; 
+    flex-direction: column; 
+    padding: 1rem;
+    flex-shrink: 0;
+  }
   .brand { color: var(--primary); font-weight: bold; font-size: 1.2rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 0.5rem; }
   .nav-btn {
     background: none; border: none; color: var(--text-muted); padding: 0.8rem;
@@ -187,7 +194,10 @@ function App() {
         return "This is a mock response generated offline. Switch to API Mode to use Gemini.";
       }
 
-      const activeKey = apiKey || process.env.API_KEY;
+      // Safe access to process.env for static deployments
+      const envKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
+      const activeKey = apiKey || envKey;
+      
       if (!activeKey) {
         alert("Please provide a Gemini API Key in Settings.");
         setLoading(false);
@@ -195,19 +205,17 @@ function App() {
       }
 
       const ai = new GoogleGenAI({ apiKey: activeKey });
-      const model = ai.models.getGenerativeModel({
-         model: 'gemini-2.5-flash-latest', // Using latest flash as requested in guidelines for text tasks
-         generationConfig: {
+      const model = ai.models.generateContent({
+        model: 'gemini-2.5-flash-latest',
+        contents: prompt,
+        config: {
             responseMimeType: jsonMode ? "application/json" : "text/plain"
-         }
+        }
       });
 
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-      });
-
+      const result = await model;
       setLoading(false);
-      return result.response.text();
+      return result.text;
     } catch (e: any) {
       console.error(e);
       setLoading(false);
